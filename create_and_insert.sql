@@ -14,7 +14,7 @@ DROP TABLE IF EXISTS "account";
 -- ADD ACCOUNT TABLE --
 CREATE TABLE account (
     id SERIAL PRIMARY KEY,
-    customer_id INTEGER REFERENCES customer(id) UNIQUE,
+    customer_id INTEGER REFERENCES customer(id),
     password VARCHAR(255) NOT NULL,
     balance INTEGER NOT NULL,
     created_at DATE DEFAULT NOW()
@@ -69,6 +69,9 @@ CREATE OR REPLACE FUNCTION transfer(id_account INTEGER, to_account INTEGER, moun
 DECLARE
     result BOOLEAN;
 BEGIN
+    IF id_account = to_account THEN
+        ROLLBACK;
+    END IF;
 
     SELECT
     CASE
@@ -114,24 +117,26 @@ INSERT INTO customer(NIK, name, phone_number, address) VALUES
 INSERT INTO account(customer_id, password, balance) VALUES
 (1, 'password', 500);
 INSERT INTO account(customer_id, password, balance) VALUES
-(3, 'password', 500);
+(1, 'password', 500);
 INSERT INTO account(customer_id, password, balance) VALUES
-(5, 'password', 100);
+(2, 'password', 100);
 
 BEGIN;
 INSERT INTO "transaction" VALUES
-(1, 'deposit', 500, null, null);
-UPDATE "account" SET balance = balance + 500 WHERE id = 1;
+(6, 'deposit', 500, null, null);
+UPDATE "account" SET balance = balance + 500 WHERE id = 6;
 COMMIT;
 
-SELECT withdraw(1, 500);
-SELECT transfer(1, 3, 100);
-SELECT transfer(1, 6, 100);
+SELECT withdraw(5, 500);
+SELECT transfer(4, 5, 500);
+SELECT transfer(6, 5, 100);
 
 -- SELECT DATA --
-SELECT name, SUM(transaction.balance) AS total_deposit FROM customer INNER JOIN "account" ON customer.id = "account".customer_id INNER JOIN transaction ON "account".id = transaction.account_id WHERE customer.id = 1 AND operation = 'deposit' GROUP BY name, operation;
+SELECT name, SUM(transaction.balance) AS total_deposit FROM customer INNER JOIN "account" ON customer.id = "account".customer_id INNER JOIN transaction ON "account".id = transaction.account_id WHERE operation = 'deposit' GROUP BY name, operation;
 
-SELECT name, SUM(transaction.balance) AS total_transfer, (SELECT name FROM customer INNER JOIN "account" ON customer.id = customer_id WHERE account.id = to_acccount) FROM customer INNER JOIN "account" ON customer.id = "account".customer_id INNER JOIN transaction ON "account".id = transaction.account_id WHERE transaction.account_id = 1 AND operation = 'transfer' GROUP BY transaction.balance, name, transaction.to_acccount;
+-- SHOWING SENDER AND RECEIVER NAME --
+SELECT name, SUM(transaction.balance) AS total_transfer, (SELECT name FROM customer INNER JOIN "account" ON customer.id = customer_id WHERE account.id = to_acccount) FROM customer INNER JOIN "account" ON customer.id = "account".customer_id INNER JOIN transaction ON "account".id = transaction.account_id WHERE transaction.account_id = 4 AND operation = 'transfer' GROUP BY transaction.balance, name, transaction.to_acccount;
 
-SELECT name, SUM(transaction.balance) AS total_transfer, (SELECT name FROM customer INNER JOIN account ON customer.id = customer_id WHERE account.id = from_account) FROM customer INNER JOIN account ON customer.id = customer_id INNER JOIN transaction ON account.id = account_id WHERE transaction.account_id = 6 AND operation = 'transfer' GROUP BY transaction.balance, name, from_account, transaction.account_id;
+-- SHOWING RECEIVER AND SENDER NAME --
+SELECT name, SUM(transaction.balance) AS total_transfer, (SELECT name FROM customer INNER JOIN account ON customer.id = customer_id WHERE account.id = from_account) FROM customer INNER JOIN account ON customer.id = customer_id INNER JOIN transaction ON account.id = account_id WHERE transaction.account_id = 5 AND operation = 'transfer' GROUP BY transaction.balance, name, from_account, transaction.account_id;
 
