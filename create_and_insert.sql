@@ -43,6 +43,10 @@ CREATE OR REPLACE FUNCTION withdraw(id_account INTEGER, mount INTEGER) RETURNS v
 DECLARE
     result BOOLEAN;
 BEGIN
+    IF mount = 0 THEN
+        ROLLBACK;
+    END IF;
+    
     INSERT INTO transaction VALUES (id_account, 'withdraw', mount, null, null);
 
     WITH enough AS (
@@ -70,6 +74,10 @@ DECLARE
     result BOOLEAN;
 BEGIN
     IF id_account = to_account THEN
+        ROLLBACK;
+    END IF;
+
+    IF mount = 0 THEN
         ROLLBACK;
     END IF;
 
