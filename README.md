@@ -15,7 +15,7 @@ The relationships between these entities are as follows:
 In summary, the ERD shows the entities and their relationships. The CUSTOMER entity has multiple ACCOUNT entities, and each ACCOUNT entity has multiple TRANSACTION entities.
 ```mermaid
 erDiagram
-    CUSTOMER ||--o| ACCOUNT : has
+    CUSTOMER ||--o{ ACCOUNT : has
     CUSTOMER {
         int id PK "AUTO INCREMENT"
         int NIK
