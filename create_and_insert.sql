@@ -39,7 +39,7 @@ CREATE TABLE transaction (
 CREATE INDEX IF NOT EXISTS account_id ON transaction(account_id);
 
 -- CREATE withdraw FUNCTIONS --
-CREATE OR REPLACE FUNCTION withdraw(id_account INTEGER, mount INTEGER) RETURNS void AS $$
+CREATE OR REPLACE FUNCTION withdraw(id_account INTEGER, mount INTEGER) RETURNS text AS $$
 DECLARE
     result BOOLEAN;
 BEGIN
@@ -64,12 +64,13 @@ BEGIN
         ROLLBACK;
     ELSE 
         UPDATE account SET balance = balance - mount WHERE id = id_account;
+        RETURN 'success';
     END IF;
 END
 $$ LANGUAGE plpgsql;
 
 -- CREATE transfer FUNCTION --
-CREATE OR REPLACE FUNCTION transfer(id_account INTEGER, to_account INTEGER, mount INTEGER) RETURNS void AS $$
+CREATE OR REPLACE FUNCTION transfer(id_account INTEGER, to_account INTEGER, mount INTEGER) RETURNS text AS $$
 DECLARE
     result BOOLEAN;
 BEGIN
@@ -88,6 +89,7 @@ BEGIN
     END AS result
      INTO result FROM "account" WHERE id = to_account;
     IF result THEN
+        SELECT 'account not found' AS error;
         ROLLBACK;
     END IF;
 
@@ -110,6 +112,7 @@ BEGIN
     ELSE 
         UPDATE account SET balance = balance - mount WHERE id = id_account;
         UPDATE account SET balance = balance + mount WHERE id = to_account;
+        RETURN 'success';
     END IF;
 END
 $$ LANGUAGE plpgsql;
@@ -144,12 +147,12 @@ INSERT INTO "transaction" VALUES
 UPDATE "account" SET balance = balance + 500 WHERE id = 2;
 COMMIT;
 
-SELECT withdraw(1, 500);
+SELECT withdraw(1, 100);
 SELECT transfer(2, 1, 100);
 SELECT transfer(2, 1, 100);
 
 -- SELECT DATA --
-SELECT name, SUM(transaction.balance) AS total_deposit FROM customer INNER JOIN "account" ON customer.id = "account".customer_id INNER JOIN transaction ON "account".id = transaction.account_id WHERE operation = 'deposit' GROUP BY name, operation;
+SELECT name, SUM(transaction.balance) AS total_deposit FROM customer INNER JOIN "account" ON customer.id = "account".customer_id INNER JOIN transaction ON "account".id = transaction.account_id WHERE operation = 'withdraw' GROUP BY name, operation;
 
 -- SHOWING SENDER AND RECEIVER NAME --
 SELECT name, SUM(transaction.balance) AS total_transfer, (SELECT name FROM customer INNER JOIN "account" ON customer.id = customer_id WHERE account.id = to_acccount) FROM customer INNER JOIN "account" ON customer.id = "account".customer_id INNER JOIN transaction ON "account".id = transaction.account_id WHERE transaction.account_id = 2 AND operation = 'transfer' GROUP BY transaction.balance, name, transaction.to_acccount;
