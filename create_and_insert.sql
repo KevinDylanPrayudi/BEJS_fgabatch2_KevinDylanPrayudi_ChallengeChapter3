@@ -1,4 +1,5 @@
 -- DROP TYPE operation IF EXISTS --
+CREATE DATABASE mydb;
 DROP TYPE IF EXISTS operation;
 -- ADD TYPE operation --
 CREATE TYPE operation AS ENUM ('withdraw', 'deposit', 'transfer');
@@ -33,7 +34,7 @@ CREATE TABLE transaction (
     balance INTEGER NOT NULL,
     to_acccount INTEGER,
     from_account INTEGER,
-    date DATE DEFAULT NOW()
+    date TIMESTAMP DEFAULT NOW()
 );
 -- CREATE INDEX ON TRANSACTION TABLE --
 CREATE INDEX IF NOT EXISTS account_id ON transaction(account_id);
@@ -144,7 +145,7 @@ INSERT INTO account(customer_id, password, balance) VALUES
 BEGIN;
 INSERT INTO "transaction" VALUES
 (4, 'deposit', 500, null, null);
-UPDATE "account" SET balance = balance + 500 WHERE id = 2;
+UPDATE "account" SET balance = balance + 500 WHERE id = 4;
 COMMIT;
 
 SELECT withdraw(1, 100);

@@ -37,7 +37,7 @@ erDiagram
         int balance
         int to_account "account_id default value is null"
         int from_account "account_id default value is null"
-        date date
+        timestamp date
     }
 
 ```
