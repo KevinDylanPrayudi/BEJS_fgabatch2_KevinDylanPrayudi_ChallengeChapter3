@@ -18,7 +18,7 @@ erDiagram
     CUSTOMER ||--o{ ACCOUNT : has
     CUSTOMER {
         int id PK "AUTO INCREMENT"
-        int NIK
+        string NIK
         string name
         string phone_number
         string address
@@ -34,10 +34,10 @@ erDiagram
     TRANSACTION {
         int account_id FK
         string operation "withdraw, deposit, or transfer"
-        int balance
+        int amount
         int to_account "account_id default value is null"
         int from_account "account_id default value is null"
-        timestamp date
+        timestamptz date
     }
 
 ```
