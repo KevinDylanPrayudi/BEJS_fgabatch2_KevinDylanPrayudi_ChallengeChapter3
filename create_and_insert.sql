@@ -1,3 +1,4 @@
+-- Active: 1720658787214@@127.0.0.1@5432@mydb
 -- DROP TYPE operation IF EXISTS --
 CREATE DATABASE mydb;
 DROP TYPE IF EXISTS operation;
@@ -34,26 +35,26 @@ CREATE TABLE transaction (
     balance INTEGER NOT NULL,
     to_acccount INTEGER,
     from_account INTEGER,
-    date TIMESTAMP DEFAULT NOW()
+    date timestamptz DEFAULT NOW()
 );
 -- CREATE INDEX ON TRANSACTION TABLE --
 CREATE INDEX IF NOT EXISTS account_id ON transaction(account_id);
 
 -- CREATE withdraw FUNCTIONS --
-CREATE OR REPLACE FUNCTION withdraw(id_account INTEGER, mount INTEGER) RETURNS text AS $$
+CREATE OR REPLACE FUNCTION withdraw(id_account INTEGER, amount INTEGER) RETURNS text AS $$
 DECLARE
     result BOOLEAN;
 BEGIN
-    IF mount <= 0 THEN
+    IF amount <= 0 THEN
         ROLLBACK;
     END IF;
     
-    INSERT INTO transaction VALUES (id_account, 'withdraw', mount, null, null);
+    INSERT INTO transaction VALUES (id_account, 'withdraw', amount, null, null);
 
     WITH enough AS (
         SELECT balance,
         CASE
-            WHEN balance - mount < 0 THEN TRUE
+            WHEN balance - amount < 0 THEN TRUE
             ELSE FALSE
         END AS enough
         FROM account
@@ -64,14 +65,14 @@ BEGIN
     IF result THEN
         ROLLBACK;
     ELSE 
-        UPDATE account SET balance = balance - mount WHERE id = id_account;
+        UPDATE account SET balance = balance - amount WHERE id = id_account;
         RETURN 'success';
     END IF;
 END
 $$ LANGUAGE plpgsql;
 
 -- CREATE transfer FUNCTION --
-CREATE OR REPLACE FUNCTION transfer(id_account INTEGER, to_account INTEGER, mount INTEGER) RETURNS text AS $$
+CREATE OR REPLACE FUNCTION transfer(id_account INTEGER, to_account INTEGER, amount INTEGER) RETURNS text AS $$
 DECLARE
     result BOOLEAN;
 BEGIN
@@ -79,7 +80,7 @@ BEGIN
         ROLLBACK;
     END IF;
 
-    IF mount <= 0 THEN
+    IF amount <= 0 THEN
         ROLLBACK;
     END IF;
 
@@ -94,13 +95,13 @@ BEGIN
         ROLLBACK;
     END IF;
 
-    INSERT INTO transaction VALUES (id_account, 'transfer', mount, to_account, null);
-    INSERT INTO transaction VALUES (to_account, 'transfer', mount, null, id_account);
+    INSERT INTO transaction VALUES (id_account, 'transfer', amount, to_account, null);
+    INSERT INTO transaction VALUES (to_account, 'transfer', amount, null, id_account);
 
     WITH enough AS (
         SELECT balance,
         CASE
-            WHEN balance - mount < 0 THEN TRUE
+            WHEN balance - amount < 0 THEN TRUE
             ELSE FALSE
         END AS enough
         FROM account
@@ -111,8 +112,8 @@ BEGIN
     IF result THEN
         ROLLBACK;
     ELSE 
-        UPDATE account SET balance = balance - mount WHERE id = id_account;
-        UPDATE account SET balance = balance + mount WHERE id = to_account;
+        UPDATE account SET balance = balance - amount WHERE id = id_account;
+        UPDATE account SET balance = balance + amount WHERE id = to_account;
         RETURN 'success';
     END IF;
 END
@@ -129,11 +130,11 @@ $$ LANGUAGE plpgsql;
 
 -- INSERT DATA & UPDATE DATA --
 INSERT INTO customer(NIK, name, phone_number, address) VALUES
-(1234567890, 'John Doe', '1234567890', '123 Main St');
+('1234567890', 'John Doe', '1234567890', '123 Main St');
 INSERT INTO customer(NIK, name, phone_number, address) VALUES
-(1234567891, 'John Do', '1234567890', '123 Main St');
+('1234567891', 'John Do', '1234567890', '123 Main St');
 INSERT INTO customer(NIK, name, phone_number, address) VALUES
-(1234567892, 'John Did', '1234567890', '123 Main St');
+('1234567892', 'John Did', '1234567890', '123 Main St');
 
 INSERT INTO account(customer_id, password, balance) VALUES
 (1, 'password', 500);
@@ -144,22 +145,22 @@ INSERT INTO account(customer_id, password, balance) VALUES
 
 BEGIN;
 INSERT INTO "transaction" VALUES
-(4, 'deposit', 500, null, null);
-UPDATE "account" SET balance = balance + 500 WHERE id = 4;
+(3, 'deposit', 500, null, null);
+UPDATE "account" SET balance = balance + 500 WHERE id = 3;
 COMMIT;
 
 SELECT withdraw(1, 100);
-SELECT transfer(2, 1, 100);
-SELECT transfer(2, 1, 100);
+SELECT transfer(3, 2, 100);
+SELECT transfer(3, 2, 100);
 
 -- SELECT DATA --
-SELECT name, SUM(transaction.balance) AS total_deposit FROM customer INNER JOIN "account" ON customer.id = "account".customer_id INNER JOIN transaction ON "account".id = transaction.account_id WHERE operation = 'withdraw' GROUP BY name, operation;
+SELECT name, SUM(transaction.balance) AS total_deposit FROM customer INNER JOIN "account" ON customer.id = "account".customer_id INNER JOIN transaction ON "account".id = transaction.account_id WHERE operation = 'withdraw' GROUP BY name, operation, "date";
 
 -- SHOWING SENDER AND RECEIVER NAME --
 SELECT name, SUM(transaction.balance) AS total_transfer, (SELECT name FROM customer INNER JOIN "account" ON customer.id = customer_id WHERE account.id = to_acccount) FROM customer INNER JOIN "account" ON customer.id = "account".customer_id INNER JOIN transaction ON "account".id = transaction.account_id WHERE transaction.account_id = 2 AND operation = 'transfer' GROUP BY transaction.balance, name, transaction.to_acccount;
 
 -- SHOWING RECEIVER AND SENDER NAME --
-SELECT name, SUM(transaction.balance) AS total_transfer, (SELECT name FROM customer INNER JOIN account ON customer.id = customer_id WHERE account.id = from_account) FROM customer INNER JOIN account ON customer.id = customer_id INNER JOIN transaction ON account.id = account_id WHERE transaction.account_id = 1 AND operation = 'transfer' GROUP BY transaction.balance, name, from_account, transaction.account_id;
+SELECT name, SUM(transaction.balance) AS total_transfer, (SELECT name FROM customer INNER JOIN account ON customer.id = customer_id WHERE account.id = from_account) FROM customer INNER JOIN account ON customer.id = customer_id INNER JOIN transaction ON account.id = account_id WHERE transaction.account_id = 1 AND operation = 'transfer' GROUP BY transaction.balance, name, from_account, transaction.account_id, "date";
 
 -- DELETE ACCOUNT --
 CALL delete_account(1);
