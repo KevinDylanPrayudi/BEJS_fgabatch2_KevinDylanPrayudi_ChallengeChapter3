@@ -156,7 +156,7 @@ SELECT transfer(3, 2, 100);
 SELECT name, operation, "date", SUM(amount) AS total_deposit FROM customer INNER JOIN "account" ON customer.id = "account".customer_id INNER JOIN transaction ON "account".id = transaction.account_id GROUP BY name, operation, "date";
 
 -- SHOWING SENDER AND RECEIVER NAME --
-SELECT name, "date", SUM(amount) AS total_transfer, (SELECT name FROM customer INNER JOIN "account" ON customer.id = customer_id WHERE account.id = to_acccount) FROM customer INNER JOIN "account" ON customer.id = "account".customer_id INNER JOIN transaction ON "account".id = transaction.account_id WHERE transaction.account_id = 3 AND operation = 'transfer' AND from_account ISNULL GROUP BY "date", name, transaction.to_acccount;
+SELECT name, "date", SUM(amount) AS total_transfer, (SELECT name FROM customer INNER JOIN "account" ON customer.id = customer_id WHERE account.id = to_acccount) FROM customer INNER JOIN "account" ON customer.id = "account".customer_id INNER JOIN transaction ON "account".id = transaction.account_id WHERE transaction.account_id = 3 AND operation = 'transfer' AND from_account IS NULL GROUP BY "date", name, transaction.to_acccount;
 
 -- SHOWING RECEIVER AND SENDER NAME --
 SELECT name, SUM(amount) AS total_transfer, (SELECT name FROM customer INNER JOIN account ON customer.id = customer_id WHERE account.id = from_account) FROM customer INNER JOIN account ON customer.id = customer_id INNER JOIN transaction ON account.id = account_id WHERE transaction.account_id = 2 AND operation = 'transfer' AND from_account IS NOT NULL GROUP BY amount, name, from_account, transaction.account_id, "date";
