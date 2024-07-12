@@ -1,4 +1,6 @@
 -- Active: 1720658787214@@127.0.0.1@5432@mydb
+-- DROP DATABASE mydb --
+DROP DATABASE IF EXISTS mydb;
 -- DROP TYPE operation IF EXISTS --
 CREATE DATABASE mydb;
 DROP TYPE IF EXISTS operation;
@@ -12,7 +14,7 @@ DROP TABLE IF EXISTS "account";
 DROP TABLE IF EXISTS customer;
 -- ADD CUSTOMER TABLE --
 CREATE TABLE customer (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     NIK INTEGER NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
     phone_number VARCHAR(15) NOT NULL,
@@ -21,8 +23,8 @@ CREATE TABLE customer (
 
 -- ADD ACCOUNT TABLE --
 CREATE TABLE account (
-    id SERIAL PRIMARY KEY,
-    customer_id INTEGER REFERENCES customer(id),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID REFERENCES customer(id),
     password VARCHAR(255) NOT NULL,
     balance INTEGER NOT NULL,
     created_at DATE DEFAULT NOW()
@@ -30,18 +32,18 @@ CREATE TABLE account (
 
 -- ADD TRANSACTION TABLE --
 CREATE TABLE transaction (
-    account_id INTEGER REFERENCES account(id),
+    account_id UUID REFERENCES account(id),
     operation VARCHAR(8) NOT NULL,
     amount INTEGER NOT NULL,
-    to_acccount INTEGER,
-    from_account INTEGER,
+    to_acccount UUID,
+    from_account UUID,
     date timestamptz DEFAULT NOW()
 );
 -- CREATE INDEX ON TRANSACTION TABLE --
 CREATE INDEX IF NOT EXISTS account_id ON transaction(account_id);
 
 -- CREATE withdraw FUNCTIONS --
-CREATE OR REPLACE FUNCTION withdraw(id_account INTEGER, amount INTEGER) RETURNS text AS $$
+CREATE OR REPLACE FUNCTION withdraw(id_account UUID, amount INTEGER) RETURNS text AS $$
 DECLARE
     result BOOLEAN;
 BEGIN
@@ -72,7 +74,7 @@ END
 $$ LANGUAGE plpgsql;
 
 -- CREATE transfer FUNCTION --
-CREATE OR REPLACE FUNCTION transfer(id_account INTEGER, to_account INTEGER, amount INTEGER) RETURNS text AS $$
+CREATE OR REPLACE FUNCTION transfer(id_account UUID, to_account UUID, amount INTEGER) RETURNS text AS $$
 DECLARE
     result BOOLEAN;
 BEGIN
@@ -119,7 +121,7 @@ END
 $$ LANGUAGE plpgsql;
 
 -- DELETE ACCOUNT --
-CREATE OR REPLACE PROCEDURE delete_account(id_account INTEGER) AS $$
+CREATE OR REPLACE PROCEDURE delete_account(id_account UUID) AS $$
 BEGIN
     ALTER TABLE transaction DROP CONSTRAINT transaction_account_id_fkey, ADD CONSTRAINT transaction_account_id_fkey FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE;
     DELETE FROM account WHERE id = id_account;
@@ -128,38 +130,36 @@ END
 $$ LANGUAGE plpgsql;
 
 -- INSERT DATA & UPDATE DATA --
-INSERT INTO customer(NIK, name, phone_number, address) VALUES
-('1234567890', 'John Doe', '1234567890', '123 Main St');
-INSERT INTO customer(NIK, name, phone_number, address) VALUES
-('1234567891', 'John Do', '1234567890', '123 Main St');
-INSERT INTO customer(NIK, name, phone_number, address) VALUES
-('1234567892', 'John Did', '1234567890', '123 Main St');
+INSERT INTO customer(id, NIK, name, phone_number, address) VALUES
+('0190a778-ad24-7560-bc12-92e2df286fca','1234567890', 'John Doe', '1234567890', '123 Main St');
+INSERT INTO customer(id, NIK, name, phone_number, address) VALUES
+('0190a778-ad24-7d08-a536-a59d5b6b88a6', '1234567891', 'John Do', '1234567890', '123 Main St');
 
-INSERT INTO account(customer_id, password, balance) VALUES
-(1, 'password', 500);
-INSERT INTO account(customer_id, password, balance) VALUES
-(1, 'password', 500);
-INSERT INTO account(customer_id, password, balance) VALUES
-(2, 'password', 100);
+INSERT INTO account(id, customer_id, password, balance) VALUES
+('0190a77a-9b0f-7fa1-ad7f-1a55051aeeb3', '0190a778-ad24-7560-bc12-92e2df286fca', 'password', 500);
+INSERT INTO account(id, customer_id, password, balance) VALUES
+('0190a77a-9b0f-793f-b673-d31ce24b474c','0190a778-ad24-7560-bc12-92e2df286fca', 'password', 500);
+INSERT INTO account(id, customer_id, password, balance) VALUES
+('0190a778-ad24-7d08-a536-a59d5b6b88a6','0190a778-ad24-7d08-a536-a59d5b6b88a6', 'password', 100);
 
 BEGIN;
 INSERT INTO "transaction" VALUES
-(3, 'deposit', 500, null, null);
-UPDATE "account" SET balance = balance + 500 WHERE id = 3;
+('0190a778-ad24-7d08-a536-a59d5b6b88a6', 'deposit', 500, null, null);
+UPDATE "account" SET balance = balance + 500 WHERE id = '0190a778-ad24-7d08-a536-a59d5b6b88a6';
 COMMIT;
 
-SELECT withdraw(1, 100);
-SELECT transfer(1, 3, 100);
-SELECT transfer(3, 2, 100);
+SELECT withdraw('0190a77a-9b0f-7fa1-ad7f-1a55051aeeb3', 100);
+SELECT transfer('0190a77a-9b0f-7fa1-ad7f-1a55051aeeb3', '0190a778-ad24-7d08-a536-a59d5b6b88a6', 100);
+SELECT transfer('0190a778-ad24-7d08-a536-a59d5b6b88a6', '0190a77a-9b0f-793f-b673-d31ce24b474c', 100);
 
 -- SELECT DATA --
-SELECT name, operation, "date", SUM(amount) AS total_deposit FROM customer INNER JOIN "account" ON customer.id = "account".customer_id INNER JOIN transaction ON "account".id = transaction.account_id GROUP BY name, operation, "date";
+SELECT name, operation, "date", SUM(amount) AS total_deposit FROM customer INNER JOIN "account" ON customer.id = customer_id INNER JOIN transaction ON "account".id = account_id GROUP BY name, operation, "date";
 
 -- SHOWING SENDER AND RECEIVER NAME --
-SELECT name, "date", SUM(amount) AS total_transfer, (SELECT name FROM customer INNER JOIN "account" ON customer.id = customer_id WHERE account.id = to_acccount) FROM customer INNER JOIN "account" ON customer.id = "account".customer_id INNER JOIN transaction ON "account".id = transaction.account_id WHERE transaction.account_id = 3 AND operation = 'transfer' AND from_account IS NULL GROUP BY "date", name, transaction.to_acccount;
+SELECT name, "date", SUM(amount) AS total_transfer, (SELECT name FROM customer INNER JOIN "account" ON customer.id = customer_id WHERE account.id = to_acccount) FROM customer INNER JOIN "account" ON customer.id = customer_id INNER JOIN transaction ON "account".id = account_id WHERE account_id = '0190a778-ad24-7d08-a536-a59d5b6b88a6' AND operation = 'transfer' AND from_account IS NULL GROUP BY "date", name, to_acccount;
 
 -- SHOWING RECEIVER AND SENDER NAME --
-SELECT name, SUM(amount) AS total_transfer, (SELECT name FROM customer INNER JOIN account ON customer.id = customer_id WHERE account.id = from_account) FROM customer INNER JOIN account ON customer.id = customer_id INNER JOIN transaction ON account.id = account_id WHERE transaction.account_id = 2 AND operation = 'transfer' AND from_account IS NOT NULL GROUP BY amount, name, from_account, transaction.account_id, "date";
+SELECT name, SUM(amount) AS total_transfer, (SELECT name FROM customer INNER JOIN account ON customer.id = customer_id WHERE account.id = from_account) FROM customer INNER JOIN account ON customer.id = customer_id INNER JOIN transaction ON account.id = account_id WHERE account_id = '0190a77a-9b0f-793f-b673-d31ce24b474c' AND operation = 'transfer' AND from_account IS NOT NULL GROUP BY amount, name, from_account, account_id, transaction."date";
 
 -- DELETE ACCOUNT --
-CALL delete_account(1);
+CALL delete_account('0190a77a-9b0f-7fa1-ad7f-1a55051aeeb3');
