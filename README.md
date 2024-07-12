@@ -17,7 +17,7 @@ In summary, the ERD shows the entities and their relationships. The CUSTOMER ent
 erDiagram
     CUSTOMER ||--o{ ACCOUNT : has
     CUSTOMER {
-        int id PK "AUTO INCREMENT"
+        uuid id PK "AUTO INCREMENT"
         string NIK
         string name
         string phone_number
@@ -25,18 +25,18 @@ erDiagram
     }
     ACCOUNT ||--o{ TRANSACTION : contains
     ACCOUNT {
-        int id  PK "AUTO INCREMENT"
+        uuid id  PK "AUTO INCREMENT"
         string customer_id  FK
         string password
         int balance
         date created_at
     }
     TRANSACTION {
-        int account_id FK
+        uuid account_id FK
         string operation "withdraw, deposit, or transfer"
         int amount
-        int to_account "account_id default value is null"
-        int from_account "account_id default value is null"
+        uuid to_account "account_id default value is null"
+        uuid from_account "account_id default value is null"
         timestamptz date
     }
 
